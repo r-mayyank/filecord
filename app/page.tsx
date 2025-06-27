@@ -1,8 +1,6 @@
 "use client";
 import { FileUpload } from "@/components/ui/file-upload";
-import Dropzone from "@/components/dropzone";
 import * as React from "react"
-import Image from "next/image";
 
 export default function Home() {
   // const [isDragging, setIsDragging] = React.useState(false);

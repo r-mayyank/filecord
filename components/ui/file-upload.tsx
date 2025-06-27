@@ -8,7 +8,6 @@ import {
   UploadCloud,
   File as FileIcon,
   X,
-  CheckCircle,
   Loader,
   RefreshCcw,
   ArrowDownToLine,
@@ -361,7 +360,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
         ),
       );
     }
-    
+
     const removeFile = (id: string) => {
       const updatedFiles = files.filter((f) => f.id !== id);
       setFiles(updatedFiles);
