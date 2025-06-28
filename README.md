@@ -157,23 +157,6 @@ filecord/
    - Download your converted files instantly
    - Files are processed locally in your browser
 
-## ⚙️ Configuration
-
-### Environment Variables
-
-Create a `.env.local` file in the root directory:
-
-```env
-# Add any environment variables here
-NEXT_PUBLIC_APP_NAME=Filecord
-```
-
-### Customization
-
-- **Themes**: Modify CSS variables in `app/globals.css`
-- **File Limits**: Adjust limits in `components/ui/file-upload.tsx`
-- **Supported Formats**: Update format arrays in `components/ui/file-upload.tsx`
-
 ## 🤝 Contributing
 
 We welcome contributions! Please follow these steps:
@@ -196,20 +179,6 @@ We welcome contributions! Please follow these steps:
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👨‍💻 Author
-
-**Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
-
-## 🙏 Acknowledgments
-
-- [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) for browser-based media processing
-- [Radix UI](https://www.radix-ui.com/) for accessible component primitives
-- [Tailwind CSS](https://tailwindcss.com/) for utility-first styling
-- [Lucide](https://lucide.dev/) for beautiful icons
 
 ## 📊 Stats
 
