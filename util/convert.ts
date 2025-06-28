@@ -15,86 +15,89 @@ export default async function convertFile(
   const { fetchFile } = await import('@ffmpeg/util');
   
   const { file, to, file_name, file_type } = action;
-  const input = file_name; // Use the full filename as input
-  const output = removeFileExtension(file_name) + '.' + to;
+  
+  // Use simple, safe filenames to avoid issues with special characters
+  const input = `input.${file_name.split('.').pop()}`;
+  const output = `output.${to}`;
+  
+  console.log(`Converting ${input} to ${output}, file type: ${file_type}`);
   
   try {
     // Write the input file to FFmpeg's file system
-    await ffmpeg.writeFile(input, await fetchFile(file));
+    const fileData = await fetchFile(file);
+    await ffmpeg.writeFile(input, fileData);
+    console.log('File written to FFmpeg filesystem');
 
-    // FFMEG COMMANDS
+    // FFMEG COMMANDS - simplified for better compatibility
     let ffmpeg_cmd: any = [];
     
-    // Handle different file types with optimized commands
+    // Handle different file types with simplified, reliable commands
     if (file_type.startsWith('image/')) {
-      // Image conversion - simple and efficient
-      ffmpeg_cmd = ['-i', input, '-q:v', '2', output];
+      // Simple image conversion
+      ffmpeg_cmd = ['-i', input, output];
     } else if (file_type.startsWith('video/')) {
-      // Video conversion
-      if (to === '3gp') {
-        ffmpeg_cmd = [
-          '-i', input,
-          '-r', '20',
-          '-s', '352x288',
-          '-vb', '400k',
-          '-acodec', 'aac',
-          '-strict', 'experimental',
-          '-ac', '1',
-          '-ar', '8000',
-          '-ab', '24k',
-          output,
-        ];
-      } else if (to === 'mp4') {
-        ffmpeg_cmd = [
-          '-i', input,
-          '-c:v', 'libx264',
-          '-crf', '23',
-          '-preset', 'medium',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          output,
-        ];
+      // Simple video conversion with basic codecs
+      if (to === 'mp4') {
+        ffmpeg_cmd = ['-i', input, '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', output];
+      } else if (to === 'webm') {
+        ffmpeg_cmd = ['-i', input, '-c:v', 'libvpx', '-crf', '30', output];
       } else {
-        ffmpeg_cmd = ['-i', input, '-c', 'copy', output];
+        // Basic conversion without codec specification
+        ffmpeg_cmd = ['-i', input, output];
       }
     } else if (file_type.startsWith('audio/')) {
-      // Audio conversion
+      // Simple audio conversion
       if (to === 'mp3') {
-        ffmpeg_cmd = ['-i', input, '-codec:a', 'libmp3lame', '-b:a', '192k', output];
+        ffmpeg_cmd = ['-i', input, '-c:a', 'mp3', output];
       } else if (to === 'wav') {
-        ffmpeg_cmd = ['-i', input, '-codec:a', 'pcm_s16le', output];
+        ffmpeg_cmd = ['-i', input, '-c:a', 'pcm_s16le', output];
       } else {
-        ffmpeg_cmd = ['-i', input, '-codec:a', 'copy', output];
+        ffmpeg_cmd = ['-i', input, output];
       }
     } else {
-      // Fallback for other file types
+      // Fallback - simple conversion
       ffmpeg_cmd = ['-i', input, output];
     }
 
-    // execute cmd
+    console.log('FFmpeg command:', ffmpeg_cmd.join(' '));
+
+    // Execute command
     await ffmpeg.exec(ffmpeg_cmd);
+    console.log('FFmpeg conversion completed');
 
     // Read the output file
-    const data = (await ffmpeg.readFile(output)) as any;
+    const data = await ffmpeg.readFile(output);
+    console.log('Output file read successfully');
     
-    // Clean up - remove files from FFmpeg's virtual file system
+    // Clean up files from FFmpeg's virtual file system
     try {
       await ffmpeg.deleteFile(input);
       await ffmpeg.deleteFile(output);
+      console.log('Cleanup completed');
     } catch (cleanupError) {
       console.warn('Failed to cleanup files:', cleanupError);
     }
     
-    const blob = new Blob([data], { type: file_type.split('/')[0] });
+    // Create blob with proper MIME type
+    let mimeType = file_type;
+    if (to === 'mp4') mimeType = 'video/mp4';
+    else if (to === 'mp3') mimeType = 'audio/mp3';
+    else if (to === 'png') mimeType = 'image/png';
+    else if (to === 'jpg' || to === 'jpeg') mimeType = 'image/jpeg';
+    
+    const blob = new Blob([data.buffer], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    return { url, output };
+    
+    return { url, output: `${removeFileExtension(file_name)}.${to}` };
     
   } catch (error) {
+    console.error('FFmpeg conversion error:', error);
     // Clean up input file if it exists
     try {
       await ffmpeg.deleteFile(input);
+      await ffmpeg.deleteFile(output);
     } catch (cleanupError) {
-      // Ignore cleanup errors
+      console.warn('Failed to cleanup files after error:', cleanupError);
     }
     throw error;
   }

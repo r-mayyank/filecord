@@ -277,9 +277,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
       const sizes = ["Bytes", "KB", "MB", "GB"];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-    };
-
-    const convert = async (id: string) => {
+    };    const convert = async (id: string) => {
       if (!isFFmpegLoaded || !ffmpegRef.current) {
         toast.error("Error", "FFmpeg is not loaded yet. Please wait and try again.");
         return;
@@ -291,17 +289,25 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
         return;
       }
 
-      // Check file size (limit to 50MB for browser-based conversion)
-      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      console.log('Starting conversion for file:', fileToConvert.file_name, 'to format:', fileToConvert.to);
+
+      // Check file size (limit to 20MB for better reliability)
+      const maxFileSize = 20 * 1024 * 1024; // 20MB
       if (fileToConvert.file_size > maxFileSize) {
-        toast.error("Error", "File too large. Please use files smaller than 50MB.");
+        toast.error("Error", "File too large. Please use files smaller than 20MB for better performance.");
+        return;
+      }
+
+      // Validate target format
+      if (!fileToConvert.to) {
+        toast.error("Error", "Please select a target format first.");
         return;
       }
 
       setFiles(
         files.map((file): FileWithPreview => {
           if (file.id === id) {
-            console.log('CONVERTING', id);
+            console.log('CONVERTING', id, 'from', file.from, 'to', file.to);
             return {
               ...file,
               is_converting: true,
@@ -313,7 +319,17 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
       );
 
       try {
+        console.log('Calling convertFile with:', {
+          fileName: fileToConvert.file_name,
+          fileType: fileToConvert.file_type,
+          fileSize: fileToConvert.file_size,
+          targetFormat: fileToConvert.to
+        });
+        
         const { url, output } = await convertFile(ffmpegRef.current, fileToConvert);
+        
+        console.log('Conversion successful:', { url, output });
+        
         setFiles(
           files.map((file): FileWithPreview => {
             if (file.id === id) {
@@ -333,10 +349,11 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
         toast.success("Success", "File converted successfully!");
       } catch (error) {
         console.error("Error converting file:", error);
+        
         setFiles(
           files.map((file): FileWithPreview => {
             if (file.id === id) {
-              console.log('ERROR', id);
+              console.log('ERROR', id, error);
               return {
                 ...file,
                 is_converting: false,
@@ -350,12 +367,16 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
 
         // Provide more specific error messages
         const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        console.log('Full error details:', errorMessage);
+        
         if (errorMessage.includes("memory access out of bounds")) {
-          toast.error("Error", "File conversion failed due to memory issues. Try with a smaller file.");
+          toast.error("Error", "Memory error occurred. Try with a smaller file or different format.");
         } else if (errorMessage.includes("timeout")) {
-          toast.error("Error", "File conversion timed out. Try with a smaller file.");
+          toast.error("Error", "Conversion timed out. Try with a smaller file.");
+        } else if (errorMessage.includes("codec") || errorMessage.includes("format")) {
+          toast.error("Error", "Unsupported format combination. Try a different output format.");
         } else {
-          toast.error("Error", `File conversion failed: ${errorMessage}`);
+          toast.error("Error", `Conversion failed: ${errorMessage.substring(0, 100)}`);
         }
       }
     };
