@@ -138,9 +138,11 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
   ) => {
     const [files, setFiles] = React.useState<FileWithPreview[]>([]);
     const [isDragging, setIsDragging] = React.useState(false);
+    const [isGlobalDragging, setIsGlobalDragging] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
     const ffmpegRef = React.useRef<any>(null);
     const [isFFmpegLoaded, setIsFFmpegLoaded] = React.useState(false);
+    const dragCounterRef = React.useRef(0);
 
     // Initialize FFmpeg
     React.useEffect(() => {
@@ -167,6 +169,107 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
 
       loadFFmpeg();
     }, []);
+
+    // Global drag and drop handlers
+    React.useEffect(() => {
+      const handleGlobalDragEnter = (e: DragEvent) => {
+        e.preventDefault();
+        dragCounterRef.current++;
+        
+        // Check if the dragged item contains files
+        if (e.dataTransfer?.types.includes('Files')) {
+          setIsGlobalDragging(true);
+        }
+      };
+
+      const handleGlobalDragLeave = (e: DragEvent) => {
+        e.preventDefault();
+        dragCounterRef.current--;
+        
+        // Only hide the overlay when all drag events have been countered
+        if (dragCounterRef.current === 0) {
+          setIsGlobalDragging(false);
+        }
+      };
+
+      const handleGlobalDragOver = (e: DragEvent) => {
+        e.preventDefault();
+      };
+
+      const handleGlobalDrop = (e: DragEvent) => {
+        e.preventDefault();
+        dragCounterRef.current = 0;
+        setIsGlobalDragging(false);
+        
+        // Only handle the drop if it contains files
+        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+          // Create a local handleFiles function
+          const localHandleFiles = (fileList: FileList) => {
+            if (disabled) return;
+
+            const newFiles = Array.from(fileList)
+              .slice(0, maxFiles - files.length)
+              .map((file) => ({
+                id: `${Date.now()}-${Math.random()}`,
+                file_name: file.name,
+                file_size: file.size,
+                from: file.name.slice(((file.name.lastIndexOf('.') - 1) >>> 0) + 2),
+                to: null,
+                file_type: file.type,
+                file,
+                is_converted: false,
+                is_converting: false,
+                is_error: false,
+                status: "uploading" as const,
+                progress: 0,
+              }));
+
+            const updatedFiles = [...files, ...newFiles];
+            setFiles(updatedFiles);
+            onFilesChange?.(updatedFiles);
+
+            // Simulate upload
+            newFiles.forEach((fileItem) => {
+              let progress = 0;
+              const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                setFiles((prev) =>
+                  prev.map((f) =>
+                    f.id === fileItem.id
+                      ? { ...f, progress: Math.min(progress, 100) }
+                      : f,
+                  ),
+                );
+                if (progress >= 100) {
+                  clearInterval(interval);
+                  setFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === fileItem.id ? { ...f, status: "completed" } : f,
+                    ),
+                  );
+                }
+              }, 200);
+            });
+          };
+          
+          localHandleFiles(e.dataTransfer.files);
+        }
+      };
+
+      // Add global event listeners
+      document.addEventListener('dragenter', handleGlobalDragEnter);
+      document.addEventListener('dragleave', handleGlobalDragLeave);
+      document.addEventListener('dragover', handleGlobalDragOver);
+      document.addEventListener('drop', handleGlobalDrop);
+
+      // Cleanup
+      return () => {
+        document.removeEventListener('dragenter', handleGlobalDragEnter);
+        document.removeEventListener('dragleave', handleGlobalDragLeave);
+        document.removeEventListener('dragover', handleGlobalDragOver);
+        document.removeEventListener('drop', handleGlobalDrop);
+      };
+    }, [files, disabled, maxFiles, onFilesChange]);
 
     const formatFileSize = (bytes: number): string => {
       if (!bytes) return "0 Bytes";
@@ -369,16 +472,22 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
 
     const onDrop = (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(false);
-      handleFiles(e.dataTransfer.files);
+      // Don't handle here since global handler will process it
     };
 
     const onDragOver = (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       if (!disabled) setIsDragging(true);
     };
 
-    const onDragLeave = () => setIsDragging(false);
+    const onDragLeave = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+    };
 
     const onSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) handleFiles(e.target.files);
@@ -439,7 +548,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-black border w-full justify-between"
+                  className="flex flex-col md:flex-row items-center gap-3 p-3 rounded-lg bg-black border w-full/90 justify-between mx-2"
                 >
                   {/* Left section */}
                   <div className="flex items-center gap-3 flex-1">
@@ -465,9 +574,10 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                   </div>
 
                   {/* Right section */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col md:flex-row items-center gap-2">
                     {!file.is_converted && !file.url && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col md:flex-row items-center gap-2">
+                        <div className="flex items-center gap-2">
                         <div className="whitespace-nowrap">Convert to:</div>
                         <Select
                           onValueChange={(value) =>
@@ -513,6 +623,8 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                             )}
                           </SelectContent>
                         </Select>
+                        </div>
+                        <div>
                         <button
                           onClick={() => convert(file.id)}
                           disabled={!file.to || file.status !== "completed" || file.is_converting || !isFFmpegLoaded}
@@ -532,6 +644,7 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                             </>
                           )}
                         </button>
+                        </div>
                       </div>
                     )}
 
@@ -561,12 +674,41 @@ const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
                     >
                       <X className="w-4 h-4" />
                     </button>
+                    
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
           </div>
         )}
+
+        {/* Global Drag Overlay */}
+        <AnimatePresence>
+          {isGlobalDragging && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"
+              style={{ pointerEvents: 'none' }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.3, type: "spring" }}
+                className="flex justify-centerbg-white/10 w-full h-full border-2 border-dashed border-white/50 rounded-2xl p-16 text-center backdrop-blur-md"
+              >
+                <div className="flex flex-1 flex-col items-center justify-center w-full h-full">
+                  <UploadCloud className="w-24 h-24 text-white mx-auto mb-6" />
+                  <h2 className="text-3xl font-bold text-white mb-2">Drop files here</h2>
+                  <p className="text-white/80 text-lg">Release to upload your files</p>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   },

@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/Toast/toast";
 import AppBar from "@/components/appbar";
 
-const inter = Inter({subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -21,10 +21,15 @@ export default function RootLayout({
       <body
         className={`${inter.className} antialiased`}
       >
-        <Toaster />
-        <AppBar />
-        {children}
+        <div className="min-h-screen w-full flex flex-col [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#63e_100%)]">
+          <Toaster />
+          <AppBar />
+          <main className="flex-1">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );
 }
+
