@@ -1,4 +1,6 @@
 "use client";
+
+import BlurText from "@/components/blocks/TextAnimations/BlurText/BlurText";
 import { FileUpload } from "@/components/ui/file-upload";
 import * as React from "react"
 
@@ -13,16 +15,23 @@ export default function Home() {
 
 
   return (
-    <div 
+    <div
     // onDragOver={onDragOver}
     // onDragLeave={onDragLeave}
     >
       <div className="flex justify-center items-center">
         <main className="flex flex-col items-center justify-center min-h-[80svh]">
           {/* herosection */}
-          <div className="text-center mb-8 text-shadow-2xs text-shadow-purple-600">
-            <h1 className="text-5xl text-purple-600 font-serif">FileCord --add some spice here </h1>
-            <h2 className="text-4xl font-serif pt-4">Convert multiple files with ease..</h2>
+          <div className="flex flex-col items-center text-center mb-8 text-shadow-2xs text-shadow-purple-600">
+            <BlurText
+              text="FileCord"
+              delay={150}
+              animateBy="letters"
+              direction="top"
+              // onAnimationComplete={handleAnimationComplete}
+              className="text-5xl mb-3 text-purple-600 font-bold"
+            />
+            <h2 className="text-4xl font-serif">Convert multiple files with ease..</h2>
             <h4 className="text-2xl font-serif">We are backendless so no more storing your files.</h4>
           </div>
           <FileUpload variant="ghost"></FileUpload>
